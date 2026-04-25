@@ -1,0 +1,24 @@
+<F3>
+<RC10,10>Serial Number = <VA1>
+<RC60,10>Firmware      = <VA7>
+<RC110,10>Special Head  = <VA18>
+<RC160,10>Font File     = <VA2>
+<RC210,10>Printer Type  = <VA11>
+<RC260,10>DPI           = <VA17>
+<RC310,10>Expansion Mem = <VA50>
+<RC360,10>Path Type     = <VA19>
+<RC410,10>Ticket Type   = <VA13>
+<RC460,10>Shuffle Mode  = <VA89>
+<RC510,10>Font Encoding = <VA58>
+<RC10,625>Status Return = <VA14>
+<RC60,625>Print Speed   = <VA12>
+<RC110,625>USB Enabled   = <VA34>
+<RC160,625>USB Dev Type  = <VA111>
+<RC210,625>Ether Enabled = <VA81>
+<RC260,625>IP Address    = <VA82>
+<RC310,625>MAC Address   = <VA83>
+<RC360,625>BiDir Parallel= <VA32>
+<RC410,625>Serial Rate   = <VA10>
+<RC460,625>BlueT Enabled = <VA112>
+<RC510,625>WiFi Enabled  = <VA113>
+<p>

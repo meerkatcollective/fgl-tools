@@ -1,0 +1,17 @@
+start: element*
+
+element: command
+       | barcode
+       | TEXT
+       | NEWLINE
+
+command: "<" OPCODE args? ">"
+args: INT ("," INT)*
+
+barcode: BARCODE
+
+OPCODE: /[A-Za-z]+/
+INT: /[0-9]+/
+BARCODE: /:[^:\n<>\s]+:/
+TEXT: /[^<\n]+/
+NEWLINE: /\r?\n/
