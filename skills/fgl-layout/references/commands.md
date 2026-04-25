@@ -1,6 +1,19 @@
 # FGL Command Reference
 
-Source: TLS-Boca Systems FGL Programming Guide, Rev 12 (Feb 2020). Commands are case-sensitive; uppercase and lowercase variants are *different commands*. Lowercase commands often store state in flash and should be used sparingly.
+Source: BOCA Systems FGL46 Programming Guide, Rev 14 (Feb 2022) — https://bocasystems.com/documents/FGL46_rev14.pdf. The earlier TLS-Boca UK Rev 12 mirror is at https://tls-bocasystems.com/pdf/tls-boca-systems-uk-div-programming-guide.pdf and is acceptable for legacy firmware.
+
+Commands are case-sensitive; uppercase and lowercase variants are *different commands*. **Lowercase commands frequently store state in flash, trigger a 2–3 second printer reset, and must never be sent on every ticket** — see "Flash-write hazards" near the end of this file.
+
+## Canonical real-world templates worth reading
+
+These public templates exercise broad swathes of the spec and are good to study before authoring a layout from scratch:
+
+- **tresf gist** (Jersey Boys + CFG + Euro) — https://gist.github.com/tresf/dba5496db94082d22475953a3cd32a1c. Mirrored as fixtures in this repo at `tests/fixtures/valid/jersey_boys_*.fgl`, `cfg_dump.fgl`, `euro_chars.fgl`.
+- **QZ Tray Lemur demo** — https://github.com/qzind/tray/wiki/raw#fgl. Exercises all four rotations, six fonts, both barcode orientations, and a downloaded logo.
+- **Neodynamic park-pass example** — https://www.neodynamic.com/articles/How-to-print-raw-BOCA-FGL-commands-from-Javascript/. Shows large-numeral/small-text headlining for multi-day passes.
+- **pretix `rastertofgl.py`** — https://github.com/pretix/cups-fgl-printers. Canonical pattern for pushing pre-rasterized bitmaps via `<CB>` + `<G#>` blocks.
+
+BOCA also ships an **FGL Layout Program** (Windows WYSIWYG visualizer at 200/300/600 dpi): https://www.bocasystems.com/documents/FGL_viewer_windows.zip — useful for sanity-checking output before committing to a hardware iteration.
 
 ## Conventions
 
@@ -44,6 +57,10 @@ Source: TLS-Boca Systems FGL Programming Guide, Rev 12 (Feb 2020). Commands are 
 | `<F11>` | Script | 25×49 |
 | `<F12>` | Orator | 46×91 |
 | `<F13>` | Courier | 20×40 (or 20×42) |
+
+**Older firmware reports different cell sizes** for `<F2>` and `<F8>` — verify against your specific Lemur's PROM (`<VA7>` returns the firmware version; see `references/variables.md`). The dual-line Euro test (`<TRE><TT4><F8>...<p>` then `<TRE><TT4><F13>...<p>`) is the fastest way to find out which of the Courier-class fonts your Lemur renders correctly.
+
+**Hard-font character sets are limited.** The OCR-B fonts (`<F3>`, `<F6>`, `<F9>`) do not include `[`, `]`, and several other punctuation glyphs — they substitute garbage characters (e.g. `Ä`, `Ü`) and produce output like `EVENT: ALADDIN ÄDEBUGÜ` when given `EVENT: ALADDIN [DEBUG]`. Restrict printable text under hard fonts to ASCII alphanumerics, space, colon, dash, period. When in doubt, drop the punctuation. (For arbitrary text, switch to a TrueType font via `<TTF>` if the firmware supports it.)
 
 TrueType (FGL46 / Lemur / 26 / some 24/44):
 - `<TTF#,pt>` — select TrueType font ID `#` at point size `pt`.
@@ -119,6 +136,20 @@ At 300 dpi without `<X3>`, bars are one dot (≈0.003") wide — effectively inv
 
 See the *Two Dimensional Bar Code Supplement* for parameter formats.
 
+## UTF-8 / extended characters
+
+The Euro sign and most Latin-1 / Latin-Extended characters require **translation enable + UTF-8 mode**. The two-command preamble:
+
+```
+<TRE><TT4><F8><HW1,1><NR><RC150,50>€ ä ö ü ß<p>
+```
+
+`<TRE>` enables translation; `<TT4>` selects UTF-8. Without both, multi-byte UTF-8 sequences print as garbage. **Older firmware loads may render `<F8>` (Courier) extended chars only on `<F13>` (Courier large)** — run both lines as a smoke test on each Lemur to confirm which font your firmware handles correctly. The committed `tests/fixtures/valid/euro_chars.fgl` is exactly this dual-test.
+
+## Buffer state — `<CB>`
+
+`<CB>` clears the printer's command buffer. The pretix raster-to-FGL pattern opens every page with `<CB>` to guarantee a clean slate before issuing positioned `<G#>` raster blocks. For native FGL ticket layouts this is usually unnecessary (each `<p>` already implies an end-of-job buffer flush) but `<CB>` at the very start of an extra-long stream is harmless and a good idiom for raster pipelines.
+
 ## Inverted print
 
 | Command | Effect |
@@ -177,6 +208,33 @@ Each byte = 8 vertical dots in one column, MSB on top. After 8 rows, increment t
 | `<pl#>` | Permanent — store in flash. |
 | `<tl#>` | Permanent ticket length (for label stock with gaps). |
 | `<dpl>` | Re-enable auto-measure (delete `<pl>`/`<tl>`). |
+
+## Flash-write hazards (MUST be sent standalone)
+
+The following lowercase commands write to the printer's flash memory. Each one **triggers a 2–3 second printer reset**, during which the printer silently drops any data it receives. This is the source of the "silent success" failure — the host reports the print job left cleanly but no ticket emerges.
+
+| Command | Effect | Provisioning use |
+|---|---|---|
+| `<rte>` | Orientation Reverse (180° flip) | Required once for adjustable printers in portrait mode |
+| `<rtd>` | Orientation Default | Reverts `<rte>` |
+| `<pl#>` | Permanent print length | Set once per ticket-stock change |
+| `<tl#>` | Permanent ticket length | Set once for label stock with gaps |
+| `<dpl>` | Re-enable auto-measure | Reverts `<pl>`/`<tl>` |
+| `<pf>` | Permanent file mode | Logo/font download mode |
+| `<tf>` | Temporary file mode | Logo/font download mode |
+| `<sb>` | Single-buffer mode | Per-printer config |
+| `<mb>` | Multi-buffer mode | Per-printer config |
+| `<xe>` | Expanded character mode | Per-printer config |
+| `<cs>` | Clear permanent status | Reset latched status |
+
+**Rules for flash commands:**
+
+- Send each one in its **own** print job, with **no ticket data** in the same stream.
+- Wait ~3 seconds before sending the next print job (longer is safer).
+- If the next ticket fails to print after a config change, that's the symptom — the ticket landed in the reset window. Retry after a longer wait.
+- Lower-case commands also slow throughput and shorten flash life if sent on every ticket. They are **provisioning**, not per-ticket.
+
+The right UX is two-button toggles or a setup wizard that explicitly fires these commands separately from the main print path.
 
 ## Common pitfalls
 

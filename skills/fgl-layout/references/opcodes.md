@@ -56,7 +56,7 @@ Notation: `<OP>` = 0 args, `<OP n>` = 1 arg, `<OP n,m>` = 2 args. Opcodes are ca
 
 | Opcode | Args | Meaning |
 |--------|------|---------|
-| `<CB>` | 0 | Clear buffer |
+| `<CB>` | 0 | Clear buffer (canonical opener for raster pipelines) |
 | `<RE n>` | 1 | Repeat last element n times |
 
 ## Inverse and transparent
@@ -107,7 +107,31 @@ Notation: `<OP>` = 0 args, `<OP n>` = 1 arg, `<OP n,m>` = 2 args. Opcodes are ca
 
 | Opcode | Args | Meaning |
 |--------|------|---------|
-| `<VA n>` | 1 | Variable substitution (e.g. `<VA1>` … `<VA113>`). The validator does not constrain n. |
+| `<VA n>` | 1 | Variable substitution (e.g. `<VA1>` … `<VA113>`). The validator does not constrain n. See `references/variables.md` for the useful indices. |
+
+## Files / soft fonts / logo IDs
+
+| Opcode | Args | Meaning |
+|--------|------|---------|
+| `<DF n>` | 1 | Delete file (1=all, 7=soft font, 8=logo, 9=defrag flash) |
+| `<SF n>` | 1 | Print soft font by id |
+| `<ID n>` | 1 | Assign next-downloaded file's id (logo or soft font) |
+
+## Flash-write commands (must be sent standalone — see `references/orientation.md`)
+
+| Opcode | Args | Meaning |
+|--------|------|---------|
+| `<rte>` | 0 | Orientation Reverse (required for adjustable printers in portrait mode) |
+| `<rtd>` | 0 | Orientation Default |
+| `<pl n>` | 1 | Permanent print length |
+| `<tl n>` | 1 | Permanent ticket length |
+| `<dpl>` | 0 | Re-enable auto-measure |
+| `<pf>` | 0 | Permanent file mode |
+| `<tf>` | 0 | Temporary file mode |
+| `<sb>` | 0 | Single-buffer mode |
+| `<mb>` | 0 | Multi-buffer mode |
+| `<xe>` | 0 | Expanded character mode |
+| `<cs>` | 0 | Clear permanent status |
 
 ## Terminators (all lowercase, 0 args)
 

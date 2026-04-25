@@ -89,5 +89,30 @@ Use this as a starting point for the region table in Step 2 of SKILL.md.
 
 ## Stock-specific notes (2"×5.5" thermal, BOCA Lemur)
 
-- **Stub strip**: the perforation on this stock sits ~128 mm from the leading edge, giving a stub of ~12 mm. Don't assume the generic 25 mm figure from older Boca docs. Stub fields should be designed for the actual 12 mm (~115 dot-column) stub width.
+- **Stub strip width — measure your stock**: the perforation depends on the cut. On the TKTS booth's stock, the perforation sits **~22 mm from one short edge** (≈260 dot-rows of stub width at 300 dpi). Earlier we tried 12 mm and 25 mm and missed the perforation by enough to print stub fields onto the main face. The only reliable measurement is a physical mm ruler laid against a printed test ticket — not a photograph (lighting, glare, and perspective lie).
 - **Safe col ceiling**: empirically ~1500. The spec allows up to ~1635 but clipping at col 1500+ has been observed on hardware. Design to col 1500 unless you've confirmed otherwise with a ruler against a printed test ticket.
+- **Right-edge under `<rte>`**: when the printer is in reverse orientation, anchor barcodes at least **200 dots from the right safety margin** in user view. Ladder barcodes need extra horizontal room and have disappeared entirely when anchored within ~80 dots. See `references/orientation.md` for the full mirror-helper pattern.
+
+## Sizing sweet spots — 300 dpi, 2"×5.5"
+
+Empirical values from a dozen-ish hardware iterations on a BR46 Lemur with `<rte>` set:
+
+| Element | Too small | Too big | Sweet spot |
+|---|---|---|---|
+| Main header | `<F3><HW1,1>` | `<F3><HW3,3>` (overflows) | **`<F3><HW2,2>`** |
+| Body rows | `<F3><HW1,1>` (illegible) | `<F3><HW3,2>` (occludes ruler) | **`<F3><HW2,2>`** |
+| Stub labels | `<F1><HW1,1>` (microscopic) | `<F3><HW2,2>` (won't fit width) | **`<F2><HW2,1>`** (height-only scale) |
+| Stub values | `<F2><HW1,1>` (ok but small) | `<F3><HW2,2>` (won't fit width) | **`<F3><HW2,1>`** |
+
+`<HWh,1>` height-only scaling is the trick for narrow regions like the stub: 2× tall, 1× wide so the text still fits in 22 mm of column width. `<HW3,2>` for body rows ends up overlapping the ruler and is too tall.
+
+Hard fonts (F1–F13) at `<HW3,3>` with the wrong context produced a blank ticket once during testing — suspect an interaction with `<RR>` mid-stream. Default to `<HW2,2>` with `<F3>` for "big and readable."
+
+## Vertical budget — 600 rows at 300 dpi
+
+600 rows ≈ 50 mm of usable vertical space (after the 14-dot top/bottom safety borders). With practical font sizes:
+
+- **Body rows at `<F3><HW2,2>`**: ~6 rows fit comfortably.
+- **Stub fields at `<F2><HW2,1>` / `<F3><HW2,1>`**: ~7 fields fit with ~80-row vertical spacing.
+
+If you bump fonts and run out of vertical budget, drop fields rather than crushing line spacing. A two-column stub layout buys more capacity if you need it — `cols 0..130` for label and `cols 130..260` for value at 22 mm stub width.

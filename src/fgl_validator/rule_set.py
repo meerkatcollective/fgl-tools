@@ -12,8 +12,9 @@ KNOWN_OPCODES: dict[str, int] = {
     "HW": 2, "SD": 1,
     # Lines / boxes
     "LT": 1, "BS": 2, "BX": 2, "VX": 1, "HX": 1,
-    # Logos / graphics
+    # Logos / graphics / files
     "LD": 1, "LO": 1, "G": 1, "g": 1,
+    "DF": 1, "SF": 1, "ID": 1,
     # Buffer / repeat
     "CB": 0, "RE": 1,
     # Inverse / transparent
@@ -30,6 +31,11 @@ KNOWN_OPCODES: dict[str, int] = {
     "S": 1, "PC": 0, "TC": 1,
     # Variables
     "VA": 1,
+    # Flash-write commands (must be sent standalone — see references/orientation.md)
+    "rte": 0, "rtd": 0,
+    "pl": 1, "tl": 1, "dpl": 0,
+    "pf": 0, "tf": 0,
+    "sb": 0, "mb": 0, "xe": 0, "cs": 0,
     # Terminators (lowercase)
     "p": 0, "q": 0, "z": 0, "h": 0, "r": 0,
 }
