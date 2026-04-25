@@ -21,7 +21,7 @@ If `lark` is missing the hook degrades gracefully: it emits a single advisory li
 ## Install (marketplace)
 
 ```sh
-claude /plugin marketplace add https://github.com/meerkat/fgl-tools
+claude /plugin marketplace add https://github.com/meerkatcollective/fgl-tools
 claude /plugin install fgl-tools
 ```
 
