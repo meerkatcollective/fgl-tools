@@ -1,8 +1,12 @@
 {
+  "name": "fgl-tools",
+  "owner": {
+    "name": "Meerkat Collective"
+  },
   "plugins": [
     {
       "name": "fgl-tools",
-      "path": "./",
+      "source": "./",
       "description": "BOCA FGL ticket authoring skill plus LALR validator hook"
     }
   ]
