@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    {
+      "name": "fgl-tools",
+      "path": "./",
+      "description": "BOCA FGL ticket authoring skill plus LALR validator hook"
+    }
+  ]
+}
