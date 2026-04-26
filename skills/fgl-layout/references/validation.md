@@ -42,6 +42,18 @@ A segment did not end with a terminator opcode from `{p, q, z, h, r}`. The valid
 
 To avoid: always end a layout with `<p>` (or one of the alternates). For multi-ticket streams, every ticket gets its own terminator.
 
+## FGL006 — Barcode ink mass over budget (warning)
+
+A ladder barcode's computed ink mass exceeds the active printer profile's `max_ink_mass`. The Lemur appears to have a finite per-print render budget; barcodes that exceed it cause **content elsewhere on the ticket to silently drop** (typically at the opposite corner from the heavy element).
+
+Mass formula for ladder: `num_bars × bar_height_units × 8 × X²`.
+
+To avoid: shrink `<X#>`, shrink the `<oL#>` height-units argument, or encode more data at the same X (more bars at the same X² is cheaper than fewer bars at higher X).
+
+See `references/ink-budget.md` for the full empirical model, the per-symbology bar-count table, and how to plan barcode geometry to stay under the threshold.
+
+Picket-fence barcodes are deliberately not flagged — their X scaling is linear, not quadratic, and we don't have hardware-confirmed thresholds for them.
+
 ## FGL005 — `<HW>` left non-default (warning)
 
 `<HW>` is global state that persists until reset. This warning fires when:

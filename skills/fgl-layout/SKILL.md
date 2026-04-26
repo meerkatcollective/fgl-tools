@@ -211,6 +211,7 @@ Codes you may see (full descriptions in `references/validation.md`):
 - `FGL003` — coordinate out of printer bounds (default Lemur 2400×2400).
 - `FGL004` — segment missing terminator from `{p, q, z, h, r}`.
 - `FGL005` — `<HW>` left non-default at end of segment.
+- `FGL006` — ladder barcode ink mass over printer budget (silent-drop hazard; see `references/ink-budget.md`).
 
 In addition, walk this human checklist before reporting done — the validator does not catch every semantic mistake:
 
@@ -240,6 +241,7 @@ In addition, walk this human checklist before reporting done — the validator d
 - [`references/image-to-fgl.md`](references/image-to-fgl.md) — image conversion algorithm, hex packing, downloadable-logo wrapping.
 - [`references/opcodes.md`](references/opcodes.md) — canonical opcode catalog with arities (the validator's `KNOWN_OPCODES`). Use this to avoid `FGL001`/`FGL002`.
 - [`references/orientation.md`](references/orientation.md) — `<rte>`/`<rtd>` patterns, the mirror helper for user-view authoring, stub-strip stacking, right-edge clipping under reverse orientation.
+- [`references/ink-budget.md`](references/ink-budget.md) — the FGL006 model: per-print ink budget, ladder mass formula (num_bars × OL × 8 × X²), the empirical Lemur cliff at ~45k.
 - [`references/variables.md`](references/variables.md) — `<VAn>` runtime variable substitution table for diagnostic / health-check tickets.
 - [`references/validation.md`](references/validation.md) — what each `FGL00X` rule checks and how to satisfy it.
 - [`templates/basic-ticket.fgl`](templates/basic-ticket.fgl) — minimal scaffold.

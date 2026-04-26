@@ -4,7 +4,7 @@ from .ast import Command, Text, Barcode
 from .diagnostic import Diagnostic
 from .rules import RULES
 from .profile import PrinterProfile, DEFAULT
-from .rule_set import TERMINATORS, make_coordinate_bounds
+from .rule_set import TERMINATORS, make_coordinate_bounds, make_barcode_ink_mass
 
 
 def _segment_nodes(nodes):
@@ -45,8 +45,8 @@ def validate(source: str, profile: PrinterProfile = DEFAULT) -> list[Diagnostic]
 
     nodes = FGLTransformer().transform(tree)
 
-    # Build rule list: profile-independent rules + profile-bound FGL003
-    rules = RULES + [make_coordinate_bounds(profile)]
+    # Build rule list: profile-independent rules + profile-bound FGL003 / FGL006
+    rules = RULES + [make_coordinate_bounds(profile), make_barcode_ink_mass(profile)]
 
     # Segment the node stream on terminator boundaries
     segments = _segment_nodes(nodes)

@@ -1,4 +1,4 @@
-from .ast import Command
+from .ast import Barcode, Command, Text
 from .diagnostic import Diagnostic
 from .rules import rule
 
@@ -20,11 +20,14 @@ KNOWN_OPCODES: dict[str, int] = {
     # Inverse / transparent
     "EI": 0, "DI": 0, "t": 0, "n": 0,
     # Barcode setup
-    "X": 1, "BI": 0, "AXB": 1, "FL": 1,
-    # Ladder barcodes
-    "Ul": 1, "EL": 1, "NL": 1, "CL": 1, "OL": 1,
-    # Picket-fence barcodes
+    "X": 1, "BI": 0, "AXB": 1,
+    # Ladder barcodes (uppercase = legacy, ignores rotation)
+    "UL": 1, "EL": 1, "NL": 1, "CL": 1, "OL": 1, "FL": 1,
+    # Ladder barcodes (lowercase = rotation-aware, preferred)
+    "uL": 1, "eL": 1, "nL": 1, "cL": 1, "oL": 1, "fL": 1,
+    # Picket-fence barcodes (uppercase + lowercase)
     "UP": 1, "EP": 1, "NP": 1, "FP": 1, "CP": 1, "OP": 1,
+    "uP": 1, "eP": 1, "nP": 1, "fP": 1, "cP": 1, "oP": 1,
     # Output / control
     "PL": 1, "RO": 1, "ME": 0, "MD": 0, "TRE": 0,
     # Status
@@ -94,6 +97,99 @@ def must_terminate(nodes):
             "Ticket must terminate with one of <p>/<q>/<z>/<h>/<r>",
             line, col,
         )
+
+
+# Ladder-barcode select opcodes mapped to (symbology_label, num_bars(N)).
+# num_bars approximations come from the symbology spec; see references/ink-budget.md.
+# Values for ladder symbologies only — picket-fence (P-suffix) is unmodelled.
+# num_bars(N) approximations per symbology, calibrated against empirical mass
+# measurements where available.  See references/ink-budget.md for derivation.
+LADDER_SYMBOLOGIES: dict[str, tuple[str, callable]] = {
+    # Code 128 calibrated from the TKTS booth iteration: 16-char data + X4 OL5
+    # measured at ~43k mass, which back-solves to num_bars = 67 = 4*N + 3.
+    "OL": ("Code 128", lambda n: 4 * n + 3),
+    "oL": ("Code 128", lambda n: 4 * n + 3),
+    # Code 39 spec: 9 modules/char, ~5 bars; start+stop add ~10 bars total.
+    "NL": ("Code 39", lambda n: 5 * n + 10),
+    "nL": ("Code 39", lambda n: 5 * n + 10),
+    # I2of5: 5-module pairs, ~2 bars per digit.
+    "FL": ("Interleaved 2 of 5", lambda n: 2 * n + 4),
+    "fL": ("Interleaved 2 of 5", lambda n: 2 * n + 4),
+    # Codabar: ~5 bars/char, start/stop ~6.
+    "CL": ("Codabar", lambda n: 5 * n + 6),
+    "cL": ("Codabar", lambda n: 5 * n + 6),
+    # Fixed-length symbologies — bar count doesn't scale with input length.
+    "UL": ("UPC-A", lambda n: 30),
+    "uL": ("UPC-A", lambda n: 30),
+    "EL": ("EAN-13", lambda n: 30),
+    "eL": ("EAN-13", lambda n: 30),
+}
+
+
+def _strip_delimiters(s: str) -> str:
+    """Strip a single matched delimiter pair from the head/tail of a barcode payload.
+
+    Code 128 = ^DATA^, Code 39 = *DATA*, I2of5 (already a Barcode node) = :DATA:.
+    """
+    s = s.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ("^", "*"):
+        return s[1:-1]
+    return s
+
+
+def make_barcode_ink_mass(profile):
+    """Return an FGL006 rule bound to the given PrinterProfile.
+
+    Walks the flat node list looking for the canonical barcode triplet
+        <X#>  <ladder-select #>  <data>
+    and warns when the computed ink mass exceeds profile.max_ink_mass.
+
+    Mass formula for ladder symbologies (bars run along the long axis):
+        mass = num_bars * bar_height_units * 8 * X^2
+    where bar_height_units is the integer arg to the select command (e.g. OL5 -> 5).
+
+    Picket-fence symbologies are deliberately not validated here — their X scaling is
+    linear (not quadratic) and we don't have hardware-confirmed thresholds for them.
+    """
+    def barcode_ink_mass(nodes):
+        cap = profile.max_ink_mass
+        x_value = 1  # default <X1> if author never sets one
+        i = 0
+        while i < len(nodes):
+            n = nodes[i]
+            if isinstance(n, Command):
+                if n.opcode == "X" and len(n.args) == 1:
+                    x_value = n.args[0]
+                elif n.opcode in LADDER_SYMBOLOGIES and len(n.args) == 1:
+                    sym_name, bars_for = LADDER_SYMBOLOGIES[n.opcode]
+                    bar_height_units = n.args[0]
+                    # Find the next data-bearing node (Barcode or Text) — skip whitespace-only Text.
+                    data_len = 0
+                    for j in range(i + 1, len(nodes)):
+                        m = nodes[j]
+                        if isinstance(m, Barcode):
+                            data_len = len(m.body)
+                            break
+                        if isinstance(m, Text):
+                            stripped = _strip_delimiters(m.value)
+                            if stripped.strip():
+                                data_len = len(stripped)
+                                break
+                        if isinstance(m, Command):
+                            break  # ran out of data context
+                    if data_len > 0:
+                        num_bars = bars_for(data_len)
+                        mass = num_bars * bar_height_units * 8 * (x_value ** 2)
+                        if mass > cap:
+                            yield Diagnostic(
+                                "FGL006", "warning",
+                                f"{sym_name} barcode ink mass {mass} exceeds {profile.name} budget {cap} "
+                                f"(bars={num_bars}, OL={bar_height_units}, X={x_value}); "
+                                f"shrink X or OL, or split into a longer/shorter data string",
+                                n.line, n.col,
+                            )
+            i += 1
+    return barcode_ink_mass
 
 
 @rule
